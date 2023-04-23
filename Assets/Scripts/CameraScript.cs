@@ -179,7 +179,7 @@ public class CameraScript : MonoBehaviour
                         projected.z * ((TR - BL) / 2).x + (TR.x + BL.x) / 2,
                         projected.w * ((TR - BL) / 2).y + (TR.y + BL.y) / 2
                     ),
-                    new Vector4(0.5f, 0, 0, 0.1f)
+                    new Vector4(0, 180f/255, 20f/255, 0.1f)
                 );
                 linesOutput.Add(lineStruct);
             }
