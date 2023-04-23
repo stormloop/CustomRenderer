@@ -1,0 +1,287 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Render
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWTexture2D<float4> Trails;
+
+int2 Resolution;
+float2 BL, TR; // Coordinates of Bottom Left and Top Right.
+bool Gridlines, Axis; // Should render Gridlines and/or Axis?
+int CurveDetail;
+float DeltaTime;
+
+int Margin; // pixel margin between edges of screen and edges of coordinate window.
+
+inline float PixelToPosAccuracy() {
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - Margin) / (Resolution.x - Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        return (TR.y - BL.y) / (Resolution.y - Margin);
+    }
+    else // left and right of screen touch field edges.
+    {
+        return (TR.x - BL.x) / (Resolution.x - Margin);
+    }
+}
+
+inline float2 PixelToPos(uint2 pix) {
+    // Calculate aspect ratios and which edges will touch the screen margins.
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - 2 * Margin) / (Resolution.x - 2 * Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.x - (TR.x - BL.x) * (Resolution.y - 2 * Margin) / (TR.y - BL.y);
+        otherEdgeMargin /= 2;
+        return float2((TR.y - BL.y) / (Resolution.y - 2 * Margin) * (pix.x - otherEdgeMargin), (TR.y - BL.y) / (Resolution.y - 2 * Margin) * (pix.y - Margin)) + BL;
+    }
+    else // left and right of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.y - (TR.y - BL.y) * (Resolution.x - 2 * Margin) / (TR.x - BL.x);
+        otherEdgeMargin /= 2;
+        return float2((TR.x - BL.x) / (Resolution.x - 2 * Margin) * (pix.x - Margin), (TR.x - BL.x) / (Resolution.x - 2 * Margin) * (pix.y - otherEdgeMargin)) + BL;
+    }
+}
+inline uint2 PosToPixel(float2 pos) {
+    // Calculate aspect ratios and which edges will touch the screen margins.
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - 2 * Margin) / (Resolution.x - 2 * Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.x - (TR.x - BL.x) * (Resolution.y - 2 * Margin) / (TR.y - BL.y);
+        otherEdgeMargin /= 2;
+        return uint2(float2(otherEdgeMargin, Margin) + (pos - BL) / (TR.y - BL.y) * (Resolution.y - 2 * Margin));
+    }
+    else // left and right of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.y - (TR.y - BL.y) * (Resolution.x - 2 * Margin) / (TR.x - BL.x);
+        otherEdgeMargin /= 2;
+        return uint2(float2(Margin, otherEdgeMargin) + (pos - BL) / (TR.x - BL.x) * (Resolution.x - 2 * Margin));
+    }
+}
+
+inline bool IsPointInsideLineUnclamped(uint2 pix, float4 Positions)
+{
+    float2 pos = PixelToPos(pix);
+
+    // Vertical slope.
+    if(abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) > 0.7853981 && abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) < 2.3561944)
+    {
+        float x = (pos.y - Positions.y) * (Positions.z - Positions.x) / (Positions.w - Positions.y) + Positions.x;
+        return PosToPixel(float2(x, 0)).x == pix.x;
+    }
+        
+    // Horizontal slope.
+    float y = (pos.x - Positions.x) * (Positions.w - Positions.y) / (Positions.z - Positions.x) + Positions.y;
+    return PosToPixel(float2(0, y)).y == pix.y;
+}
+inline bool IsPointInsideLine(uint2 pix, float4 Positions)
+{
+    float2 pos = PixelToPos(pix);
+
+    // Vertical slope.
+    if(abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) > 0.7853981 && abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) < 2.3561944)
+    {
+        if(pos.y <= min(Positions.y, Positions.w) || pos.y >= max(Positions.y, Positions.w))
+            return false;
+        float x = (pos.y - Positions.y) * (Positions.z - Positions.x) / (Positions.w - Positions.y) + Positions.x;
+        return PosToPixel(float2(x, 0)).x == pix.x;
+    }
+        
+    // Horizontal slope.
+    if(pos.x <= min(Positions.x, Positions.z) || pos.x >= max(Positions.x, Positions.z))
+        return false;
+    float y = (pos.x - Positions.x) * (Positions.w - Positions.y) / (Positions.z - Positions.x) + Positions.y;
+    return PosToPixel(float2(0, y)).y == pix.y;
+}
+
+struct Line {
+    float4 Positions; // (x1,y1) (x2,y2).
+    float4 ColorAndDepth; // r,g,b,z.
+    float Trail;
+
+    inline bool IsPointInside(float2 pix)
+    {
+        return IsPointInsideLine(pix, Positions);
+    }
+};
+struct CCurve {
+    float4 Positions;
+    float4 Controls;
+    float4 ColorAndDepth;
+    float Trail;
+
+    inline float2 GetPointAtFraction(float t)
+    {
+        return (1 - t) * (1 - t) * (1 - t) * Positions.xy
+            + 3 * (1 - t) * (1 - t) * t * Controls.xy
+            + 3 * (1 - t) * t * t * Controls.zw
+            + t * t * t * Positions.zw;
+    }
+
+    inline bool IsPointInside(uint2 pix, int detail)
+    {
+        bool bl = false;
+
+        float2 start = Positions.xy;
+        for(int i = 1; i <= detail; i++) {
+            float2 end = GetPointAtFraction((float)i/detail);
+            if(IsPointInsideLine(pix, float4(start.x, start.y, end.x, end.y))) {
+                bl = true;
+                break;
+            }
+            start = end;
+        }
+
+        return bl;
+    }
+};
+struct QCurve {
+    float4 Positions;
+    float2 Control;
+    float4 ColorAndDepth;
+    float Trail;
+
+    inline float2 GetPointAtFraction(float t)
+    {
+        return (1 - t) * (1 - t) * Positions.xy
+            + 2 * (1 - t) * t * Control
+            + t * t * Positions.zw;
+    }
+
+    inline bool IsPointInside(uint2 pix, int detail)
+    {
+        bool bl = false;
+
+        float2 start = Positions.xy;
+        for(int i = 1; i <= detail; i++) {
+            float2 end = GetPointAtFraction((float)i/detail);
+            if(IsPointInsideLine(pix, float4(start.x, start.y, end.x, end.y))) {
+                bl = true;
+                break;
+            }
+            start = end;
+        }
+
+        return bl;
+    }
+};
+struct Circle {
+    float3 PositionAndRadius;
+    float4 ColorAndDepth;
+    float Trail;
+
+    inline bool IsPointInside(float2 pos, float acc) {
+        return abs(distance(pos, PositionAndRadius.xy) - PositionAndRadius.z) <= acc;
+    }
+};
+
+StructuredBuffer<Line> Lines;
+StructuredBuffer<CCurve> CCurves;
+StructuredBuffer<QCurve> QCurves;
+StructuredBuffer<Circle> Circles;
+
+inline bool RenderBackground(uint2 id, float2 pos, float acc) {
+    if(IsPointInsideLine(id, float4(BL.x, BL.y, BL.x, TR.y)) || IsPointInsideLine(id, float4(BL.x, BL.y, TR.x, BL.y))
+    || IsPointInsideLine(id, float4(BL.x, TR.y, TR.x, TR.y)) || IsPointInsideLine(id, float4(TR.x, BL.y, TR.x, TR.y))) // Grid outline.
+    {
+        Result[id] = float4(0.9, 0.9, 0.9, 1);
+        return true;
+    }
+    if((pos.x - BL.x) * (TR.x - pos.x) < 0 || (pos.y - BL.y) * (TR.y - pos.y) < 0) // Outside of Grid.
+    {
+        Result[id] = float4(0, 0, 0, 1);
+        return true;
+    }
+    if(Gridlines && (IsPointInsideLineUnclamped(PosToPixel(float2(0, (abs(pos.y) + 0.5) % 1 - 0.5)), float4(0, 0, 1, 0)) || IsPointInsideLineUnclamped(PosToPixel(float2((abs(pos.x) + 0.5) % 1 - 0.5, 0)), float4(0, 0, 0, 1)))) // Gridlines.
+        Result[id] = float4(0.4, 0.4, 0.4, 0);
+    if(Axis && (abs(pos.x) <= 0.2 || abs(pos.y) <= 0.2) && (IsPointInsideLineUnclamped(PosToPixel(float2(0, (abs(pos.y) + 0.5) % 1 - 0.5)), float4(0, 0, 1, 0)) || IsPointInsideLineUnclamped(PosToPixel(float2((abs(pos.x) + 0.5) % 1 - 0.5, 0)), float4(0, 0, 0, 1)) || abs(pos.x) <= acc || abs(pos.y) <= acc) && TR.x - 10 * acc - pos.x >= 0 && TR.y - 10 * acc - pos.y >= 0) // Axis'
+        Result[id] = float4(0.7, 0.7, 0.7, 0);
+    if(Axis && ((TR.x - pos.x <= 10 * acc && pos.x - TR.x + abs(2 * pos.y) <= 0) || (TR.y - pos.y <= 10 * acc && pos.y - TR.y + abs(2 * pos.x) <= 0))) // Arrow heads
+        Result[id] = float4(0.7, 0.7, 0.7, 0);
+    return false;
+}
+
+inline void FadeTrail(uint2 id) {
+    Trails[id] = float4(Trails[id].x - 0.25 * DeltaTime, Trails[id].y - 0.25 * DeltaTime, Trails[id].z - 0.25 * DeltaTime, Trails[id].w);
+}
+inline void ClearCanvas(uint2 id) {
+    Result[id] = float4(0, 0, 0, 0);
+}
+
+inline void RenderLines(uint2 id, float2 pos, float acc) {
+    uint length = 0;
+    uint stride = 0;
+    Lines.GetDimensions(length, stride);
+    for(uint i = 0; i < length; i++) {
+        if(Lines[i].ColorAndDepth.w >= Result[id].w && Lines[i].IsPointInside(id)) {
+            Result[id] = Lines[i].ColorAndDepth;
+            if(Lines[i].Trail == 1) Trails[id] = Lines[i].ColorAndDepth * 4;
+        }
+    }
+}
+inline void RenderCCurves(uint2 id, float2 pos, float acc) {
+    uint length = 0;
+    uint stride = 0;
+    CCurves.GetDimensions(length, stride);
+    for(uint i = 0; i < length; i++) {
+        if(CCurves[i].ColorAndDepth.w >= Result[id].w && CCurves[i].IsPointInside(id, CurveDetail)) {
+            Result[id] = CCurves[i].ColorAndDepth;
+            if(CCurves[i].Trail == 1) Trails[id] = CCurves[i].ColorAndDepth * 4;
+        }
+    }
+}
+inline void RenderQCurves(uint2 id, float2 pos, float acc) {
+    uint length = 0;
+    uint stride = 0;
+    QCurves.GetDimensions(length, stride);
+    for(uint i = 0; i < length; i++) {
+        if(QCurves[i].ColorAndDepth.w >= Result[id].w && QCurves[i].IsPointInside(id, CurveDetail)) {
+            Result[id] = QCurves[i].ColorAndDepth;
+            if(QCurves[i].Trail == 1) Trails[id] = QCurves[i].ColorAndDepth * 4;
+        }
+    }
+}
+inline void RenderCircles(uint2 id, float2 pos, float acc) {
+    uint length = 0;
+    uint stride = 0;
+    Circles.GetDimensions(length, stride);
+    for(uint i = 0; i < length; i++) {
+        if(Circles[i].ColorAndDepth.w >= Result[id].w && Circles[i].IsPointInside(pos, acc)) {
+            Result[id] = Circles[i].ColorAndDepth;
+            if(Circles[i].Trail == 1) Trails[id] = Circles[i].ColorAndDepth * 4;
+        }
+    }
+}
+
+inline void DrawTrail(uint2 id) {
+    if(Trails[id].w / 4 >= Result[id].w && any(Trails[id].xyz > float3(0, 0, 0))) Result[id] = Trails[id] / 4;
+}
+
+inline void RenderVectors(uint2 id, float2 pos, float acc) {
+    RenderLines(id, pos, acc);
+    RenderCCurves(id, pos, acc);
+    RenderQCurves(id, pos, acc);
+    RenderCircles(id, pos, acc);
+
+    DrawTrail(id);
+}
+
+[numthreads(8,8,1)]
+void Render (uint3 id : SV_DispatchThreadID)
+{
+    float2 pos = PixelToPos(id.xy);
+    float2 pix = PosToPixel(pos);
+    float acc = PixelToPosAccuracy();
+
+    FadeTrail(id.xy);
+    ClearCanvas(id.xy);
+    if(RenderBackground(id.xy, pos, acc)) return;
+
+    RenderVectors(id.xy, pos, acc);
+
+    // Set alpha to 1.
+    Result[id.xy] = float4(Result[id.xy].x, Result[id.xy].y, Result[id.xy].z, 1);
+}

@@ -1,0 +1,41 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel GenerateFourier
+
+struct Rotator{
+    int Index;
+    float2 Coefficient;
+};
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWStructuredBuffer<Rotator> Rotators;
+
+StructuredBuffer<float2> PathPoints;
+int MinRotator;
+
+static float PI = 3.141592654;
+
+inline float2 Multiply(float2 a, float2 b)
+{
+    return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+[numthreads(8,1,1)]
+void GenerateFourier (uint3 id : SV_DispatchThreadID)
+{
+    Rotator rotator = Rotators[id.x];
+
+    rotator.Index = (int)id.x + MinRotator;
+
+    float2 coefficient;
+    uint length = 0;
+    uint stride = 0;
+    PathPoints.GetDimensions(length, stride);
+    for(uint i = 0; i < length; i++) {
+        float t = (float)i / length;
+        coefficient += (float)1 / length * Multiply(PathPoints[i], float2(cos(-2 * PI * ((int)id.x + MinRotator) * t), sin(-2 * PI * ((int)id.x + MinRotator) * t)));
+    }
+    rotator.Coefficient = coefficient;
+
+    Rotators[id.x] = rotator;
+}
