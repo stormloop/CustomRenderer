@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -21,10 +22,10 @@ public static class OBJReader
         {
             vertices.Add(
                 new Vector4(
-                    float.Parse(vertex.Split(' ')[1]),
-                    float.Parse(vertex.Split(' ')[2]),
-                    float.Parse(vertex.Split(' ')[3]),
-                    vertex.Split(' ').Count() == 5 ? float.Parse(vertex.Split(' ')[4]) : 1
+                    float.Parse(vertex.Split(' ')[1], CultureInfo.InvariantCulture),
+                    float.Parse(vertex.Split(' ')[2], CultureInfo.InvariantCulture),
+                    float.Parse(vertex.Split(' ')[3], CultureInfo.InvariantCulture),
+                    vertex.Split(' ').Count() == 5 ? float.Parse(vertex.Split(' ')[4], CultureInfo.InvariantCulture) : 1
                 )
             );
         }
@@ -37,9 +38,9 @@ public static class OBJReader
                 Vector4 A = vertices[
                     int.Parse(
                         face.Split(' ')[i == 1 ? face.Split(' ').Count() - 1 : i - 1].Split('/')[0]
-                    ) - 1
+                    , CultureInfo.InvariantCulture) - 1
                 ];
-                Vector4 B = vertices[int.Parse(face.Split(' ')[i].Split('/')[0]) - 1];
+                Vector4 B = vertices[int.Parse(face.Split(' ')[i].Split('/')[0], CultureInfo.InvariantCulture) - 1];
                 if (
                     edges.FirstOrDefault(
                         (e) =>

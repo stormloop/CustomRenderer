@@ -4,6 +4,7 @@ using UnityEngine;
 using System;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 public static class FourierGenerator
 {
@@ -18,11 +19,11 @@ public static class FourierGenerator
         foreach (string line in lines)
         {
             Rotator rotator = new Rotator();
-            rotator.Index = int.Parse(line.Split('{')[1].Split('}')[0]);
+            rotator.Index = int.Parse(line.Split('{')[1].Split('}')[0], CultureInfo.InvariantCulture);
             float angle = 0;
-            angle = float.Parse(line.Split('{')[2].Split('i')[0]);
+            angle = float.Parse(line.Split('{')[2].Split('i')[0], CultureInfo.InvariantCulture);
             rotator.Coefficient =
-                float.Parse(line.Split(' ')[1].Split('e')[0])
+                float.Parse(line.Split(' ')[1].Split('e')[0], CultureInfo.InvariantCulture)
                 * new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
             rotators.Add(rotator);
         }
@@ -39,7 +40,7 @@ public static class FourierGenerator
                 series.Rotators.OrderBy((r) => Mathf.Abs(r.Index)).ThenByDescending((r) => r.Index)
             )[i];
             lines[i] =
-                $"c_{{{rotator.Index}}}: {rotator.Coefficient.magnitude}e^{{{Mathf.Atan2(rotator.Coefficient.y, rotator.Coefficient.x)}it}}";
+                $"c_{{{(rotator.Index).ToString(CultureInfo.InvariantCulture)}}}: {rotator.Coefficient.magnitude.ToString(CultureInfo.InvariantCulture)}e^{{{Mathf.Atan2(rotator.Coefficient.y, rotator.Coefficient.x).ToString(CultureInfo.InvariantCulture)}it}}";
         }
         return lines;
     }

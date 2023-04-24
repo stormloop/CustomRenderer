@@ -6,6 +6,7 @@ using System;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Xml;
+using System.Globalization;
 
 public static class SVGReader
 {
@@ -20,12 +21,12 @@ public static class SVGReader
         Debug.Log("Process text.");
         string viewBox = contents.Split("viewBox=\"")[1].Split("\"")[0];
         Vector2 bl = new Vector2(
-            float.Parse(viewBox.Split(' ')[0]),
-            float.Parse(viewBox.Split(' ')[1])
+            float.Parse(viewBox.Split(' ')[0], CultureInfo.InvariantCulture),
+            float.Parse(viewBox.Split(' ')[1], CultureInfo.InvariantCulture)
         );
         Vector2 tr = new Vector2(
-            float.Parse(viewBox.Split(' ')[2]),
-            float.Parse(viewBox.Split(' ')[3])
+            float.Parse(viewBox.Split(' ')[2], CultureInfo.InvariantCulture),
+            float.Parse(viewBox.Split(' ')[3], CultureInfo.InvariantCulture)
         );
 
         XmlDocument svgDoc = new XmlDocument();
@@ -86,8 +87,8 @@ public static class SVGReader
                 foreach (string coord in @params.Split(' ', StringSplitOptions.RemoveEmptyEntries))
                 {
                     currentPos = new Vector2(
-                        float.Parse(coord.Split(',')[0]),
-                        float.Parse(coord.Split(',')[1])
+                        float.Parse(coord.Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(coord.Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     if (i == 0)
                     {
@@ -106,8 +107,8 @@ public static class SVGReader
                 {
                     currentPos =
                         new Vector2(
-                            float.Parse(coord.Split(',')[0]),
-                            float.Parse(coord.Split(',')[1])
+                            float.Parse(coord.Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(coord.Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     if (i == 0)
                     {
@@ -124,8 +125,8 @@ public static class SVGReader
                 foreach (string coord in @params.Split(' ', StringSplitOptions.RemoveEmptyEntries))
                 {
                     currentPos = new Vector2(
-                        float.Parse(coord.Split(',')[0]),
-                        float.Parse(coord.Split(',')[1])
+                        float.Parse(coord.Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(coord.Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     output.Add(new LineElement(posIn, currentPos));
                     posIn = currentPos;
@@ -136,27 +137,27 @@ public static class SVGReader
                 {
                     currentPos =
                         new Vector2(
-                            float.Parse(coord.Split(',')[0]),
-                            float.Parse(coord.Split(',')[1])
+                            float.Parse(coord.Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(coord.Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     output.Add(new LineElement(posIn, currentPos));
                     posIn = currentPos;
                 }
                 break;
             case "H":
-                currentPos = new Vector2(float.Parse(@params.Replace(" ", "")), posIn.y);
+                currentPos = new Vector2(float.Parse(@params.Replace(" ", ""), CultureInfo.InvariantCulture), posIn.y);
                 output.Add(new LineElement(posIn, currentPos));
                 break;
             case "h":
-                currentPos = new Vector2(float.Parse(@params.Replace(" ", "")) + posIn.x, posIn.y);
+                currentPos = new Vector2(float.Parse(@params.Replace(" ", ""), CultureInfo.InvariantCulture) + posIn.x, posIn.y);
                 output.Add(new LineElement(posIn, currentPos));
                 break;
             case "V":
-                currentPos = new Vector2(posIn.x, float.Parse(@params.Replace(" ", "")));
+                currentPos = new Vector2(posIn.x, float.Parse(@params.Replace(" ", ""), CultureInfo.InvariantCulture));
                 output.Add(new LineElement(posIn, currentPos));
                 break;
             case "v":
-                currentPos = new Vector2(posIn.x, float.Parse(@params.Replace(" ", "")) + posIn.y);
+                currentPos = new Vector2(posIn.x, float.Parse(@params.Replace(" ", ""), CultureInfo.InvariantCulture) + posIn.y);
                 output.Add(new LineElement(posIn, currentPos));
                 break;
             case "C":
@@ -170,16 +171,16 @@ public static class SVGReader
                         .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                         .ToList();
                     Vector2 controlStart = new Vector2(
-                        float.Parse(list[i].Split(',')[0]),
-                        float.Parse(list[i].Split(',')[1])
+                        float.Parse(list[i].Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(list[i].Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     Vector2 controlEnd = new Vector2(
-                        float.Parse(list[i + 1].Split(',')[0]),
-                        float.Parse(list[i + 1].Split(',')[1])
+                        float.Parse(list[i + 1].Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(list[i + 1].Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     currentPos = new Vector2(
-                        float.Parse(list[i + 2].Split(',')[0]),
-                        float.Parse(list[i + 2].Split(',')[1])
+                        float.Parse(list[i + 2].Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(list[i + 2].Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     output.Add(new CubicBezierElement(posIn, currentPos, controlStart, controlEnd));
                     posIn = currentPos;
@@ -199,18 +200,18 @@ public static class SVGReader
 
                     Vector2 controlStart =
                         new Vector2(
-                            float.Parse(list[i].Split(',')[0]),
-                            float.Parse(list[i].Split(',')[1])
+                            float.Parse(list[i].Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(list[i].Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     Vector2 controlEnd =
                         new Vector2(
-                            float.Parse(list[i + 1].Split(',')[0]),
-                            float.Parse(list[i + 1].Split(',')[1])
+                            float.Parse(list[i + 1].Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(list[i + 1].Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     currentPos =
                         new Vector2(
-                            float.Parse(list[i + 2].Split(',')[0]),
-                            float.Parse(list[i + 2].Split(',')[1])
+                            float.Parse(list[i + 2].Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(list[i + 2].Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     output.Add(new CubicBezierElement(posIn, currentPos, controlStart, controlEnd));
                     posIn = currentPos;
@@ -234,12 +235,12 @@ public static class SVGReader
                         .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                         .ToList();
                     Vector2 control = new Vector2(
-                        float.Parse(list[i].Split(',')[0]),
-                        float.Parse(list[i].Split(',')[1])
+                        float.Parse(list[i].Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(list[i].Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     currentPos = new Vector2(
-                        float.Parse(list[i + 1].Split(',')[0]),
-                        float.Parse(list[i + 1].Split(',')[1])
+                        float.Parse(list[i + 1].Split(',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(list[i + 1].Split(',')[1], CultureInfo.InvariantCulture)
                     );
                     output.Add(new QuadraticBezierElement(posIn, currentPos, control));
                     posIn = currentPos;
@@ -258,13 +259,13 @@ public static class SVGReader
                         .ToList();
                     Vector2 control =
                         new Vector2(
-                            float.Parse(list[i].Split(',')[0]),
-                            float.Parse(list[i].Split(',')[1])
+                            float.Parse(list[i].Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(list[i].Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     currentPos =
                         new Vector2(
-                            float.Parse(list[i + 1].Split(',')[0]),
-                            float.Parse(list[i + 1].Split(',')[1])
+                            float.Parse(list[i + 1].Split(',')[0], CultureInfo.InvariantCulture),
+                            float.Parse(list[i + 1].Split(',')[1], CultureInfo.InvariantCulture)
                         ) + posIn;
                     output.Add(new QuadraticBezierElement(posIn, currentPos, control));
                     posIn = currentPos;
@@ -312,8 +313,8 @@ public static class SVGReader
                 : originString.Contains('%')
                     ? throw new NotSupportedException()
                     : new Vector2(
-                        float.Parse(originString.Split(' ', ',')[0]),
-                        float.Parse(originString.Split(' ', ',')[1])
+                        float.Parse(originString.Split(' ', ',')[0], CultureInfo.InvariantCulture),
+                        float.Parse(originString.Split(' ', ',')[1], CultureInfo.InvariantCulture)
                     );
 
         for (int i = 0; i < transformations.Length; i++)
@@ -325,7 +326,6 @@ public static class SVGReader
                 origin
             );
         }
-
         return elements;
     }
 
@@ -347,12 +347,12 @@ public static class SVGReader
                         if (@params.Contains(' ') || @params.Contains(','))
                         {
                             points[i] += new Vector2(
-                                float.Parse(@params.Split(' ', ',')[0]),
-                                float.Parse(@params.Split(' ', ',')[1])
+                                float.Parse(@params.Split(' ', ',')[0], CultureInfo.InvariantCulture),
+                                float.Parse(@params.Split(' ', ',')[1], CultureInfo.InvariantCulture)
                             );
                             continue;
                         }
-                        points[i] += new Vector2(float.Parse(@params), 0);
+                        points[i] += new Vector2(float.Parse(@params, CultureInfo.InvariantCulture), 0);
                     }
                     element.SetAllPoints(points);
                 }
@@ -367,13 +367,13 @@ public static class SVGReader
                         if (@params.Contains(' ') || @params.Contains(','))
                         {
                             points[i] *= new Vector2(
-                                float.Parse(@params.Split(' ', ',')[0]),
-                                float.Parse(@params.Split(' ', ',')[1])
+                                float.Parse(@params.Split(' ', ',')[0], CultureInfo.InvariantCulture),
+                                float.Parse(@params.Split(' ', ',')[1], CultureInfo.InvariantCulture)
                             );
                             points[i] += origin;
                             continue;
                         }
-                        points[i] *= new Vector2(float.Parse(@params), float.Parse(@params));
+                        points[i] *= new Vector2(float.Parse(@params, CultureInfo.InvariantCulture), float.Parse(@params, CultureInfo.InvariantCulture));
                         points[i] += origin;
                     }
                     element.SetAllPoints(points);
@@ -390,19 +390,19 @@ public static class SVGReader
                         if (@params.Contains(' ') || @params.Contains(','))
                         {
                             points[i] -= new Vector2(
-                                float.Parse(@params.Split(' ', ',')[1]),
-                                float.Parse(@params.Split(' ', ',')[2])
+                                float.Parse(@params.Split(' ', ',')[1], CultureInfo.InvariantCulture),
+                                float.Parse(@params.Split(' ', ',')[2], CultureInfo.InvariantCulture)
                             );
                             mag = points[i].magnitude;
                             deg =
                                 Math.Atan2(points[i].y, points[i].x) * Mathf.Rad2Deg
-                                + float.Parse(@params.Split(' ', ',')[0]);
+                                + float.Parse(@params.Split(' ', ',')[0], CultureInfo.InvariantCulture);
                             deg *= Mathf.Deg2Rad;
                             points[i] =
                                 mag * new Vector2((float)Math.Cos(deg), (float)Math.Sin(deg));
                             points[i] += new Vector2(
-                                float.Parse(@params.Split(' ', ',')[1]),
-                                float.Parse(@params.Split(' ', ',')[2])
+                                float.Parse(@params.Split(' ', ',')[1], CultureInfo.InvariantCulture),
+                                float.Parse(@params.Split(' ', ',')[2], CultureInfo.InvariantCulture)
                             );
                             continue;
                         }
@@ -410,7 +410,7 @@ public static class SVGReader
                         mag = points[i].magnitude;
                         deg =
                             Math.Atan2(points[i].y, points[i].x) * Mathf.Rad2Deg
-                            + float.Parse(@params.Split(' ', ',')[0]);
+                            + float.Parse(@params.Split(' ', ',')[0], CultureInfo.InvariantCulture);
                         deg *= Mathf.Deg2Rad;
                         points[i] = mag * new Vector2((float)Math.Cos(deg), (float)Math.Sin(deg));
                         points[i] += origin;
@@ -425,12 +425,12 @@ public static class SVGReader
             case "matrix":
                 foreach (PathElement element in elements)
                 {
-                    float a = float.Parse(@params.Split(' ', ',')[0]);
-                    float b = float.Parse(@params.Split(' ', ',')[1]);
-                    float c = float.Parse(@params.Split(' ', ',')[2]);
-                    float d = float.Parse(@params.Split(' ', ',')[3]);
-                    float e = float.Parse(@params.Split(' ', ',')[4]);
-                    float f = float.Parse(@params.Split(' ', ',')[5]);
+                    float a = float.Parse(@params.Split(' ', ',')[0], CultureInfo.InvariantCulture);
+                    float b = float.Parse(@params.Split(' ', ',')[1], CultureInfo.InvariantCulture);
+                    float c = float.Parse(@params.Split(' ', ',')[2], CultureInfo.InvariantCulture);
+                    float d = float.Parse(@params.Split(' ', ',')[3], CultureInfo.InvariantCulture);
+                    float e = float.Parse(@params.Split(' ', ',')[4], CultureInfo.InvariantCulture);
+                    float f = float.Parse(@params.Split(' ', ',')[5], CultureInfo.InvariantCulture);
                     Vector2[] points = element.GetAllPoints();
                     for (int i = 0; i < points.Count(); i++)
                     {
@@ -499,7 +499,7 @@ public class SVG
         PathElements = SVGReader.ProcessTransformations(
             PathElements,
             "scale(1,-1)",
-            $"{TR.x / 2},{TR.y / 2}"
+            $"{((TR + BL).x / 2).ToString(CultureInfo.InvariantCulture)},{((TR + BL).y / 2).ToString(CultureInfo.InvariantCulture)}"
         );
     }
 

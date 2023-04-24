@@ -5,6 +5,7 @@ using System.Linq;
 using System;
 using System.Text;
 using System.IO;
+using System.Globalization;
 
 public static class Commands
 {
@@ -25,7 +26,6 @@ public static class Commands
 
     public static Command GetCommand(string input)
     {
-        throw new Exception("test");
         Command command = GetAllCommands().FirstOrDefault((c) => c.IsThis(input));
         if (command == null)
         {
@@ -111,21 +111,21 @@ public class GenerateCommand : Command
             );
             return;
         }
-        if (!uint.TryParse(@params[1], out uint IntegralDetail))
+        if (!uint.TryParse(@params[1], NumberStyles.Any, CultureInfo.InvariantCulture, out uint IntegralDetail))
         {
             CommandLine.INSTANCE.LogError(
                 $"{@params[1].ToUpper()} has not been recognized as a valid natural number."
             );
             return;
         }
-        if (!int.TryParse(@params[2], out int start))
+        if (!int.TryParse(@params[2], NumberStyles.Any, CultureInfo.InvariantCulture, out int start))
         {
             CommandLine.INSTANCE.LogError(
                 $"{@params[2].ToUpper()} has not been recognized as a valid integer value."
             );
             return;
         }
-        if (!int.TryParse(@params[3], out int end))
+        if (!int.TryParse(@params[3], NumberStyles.Any, CultureInfo.InvariantCulture, out int end))
         {
             CommandLine.INSTANCE.LogError(
                 $"{@params[3].ToUpper()} has not been recognized as a valid integer value."
@@ -246,17 +246,14 @@ public class LoadCommand : Command
         Debug.Log("File exists");
         if (@params[2].ToUpper().Equals("SVG"))
         {
-            Debug.Log("File is SVG");
             CameraScript.INSTANCE.LoadSVG(SVGReader.ProcessPath(@params[1]));
         }
         else if (@params[2].ToUpper().Equals("OBJ"))
         {
-            Debug.Log("File is OBJ");
             CameraScript.INSTANCE.LoadOBJ(OBJReader.ProcessPath(@params[1]));
         }
         else if (@params[2].ToUpper().Equals("FOURIER"))
         {
-            Debug.Log("File is FOURIER");
             CameraScript.INSTANCE.LoadFourier(
                 FourierGenerator.Load(@params[1]),
                 CameraScript.INSTANCE.BL,
@@ -311,11 +308,11 @@ public class RenderOptionsCommand : Command
         {
             if (
                 (
-                    !float.TryParse(@params[1].Split(',')[0], out BL.x)
+                    !float.TryParse(@params[1].Split(',')[0], NumberStyles.Any, CultureInfo.InvariantCulture, out BL.x)
                     && @params[1].Split(',')[0] != ""
                 )
                 || (
-                    !float.TryParse(@params[1].Split(',')[1], out BL.y)
+                    !float.TryParse(@params[1].Split(',')[1], NumberStyles.Any, CultureInfo.InvariantCulture, out BL.y)
                     && @params[1].Split(',')[1] != ""
                 )
             )
@@ -333,11 +330,11 @@ public class RenderOptionsCommand : Command
             if (
                 (
                     (
-                        !float.TryParse(@params[2].Split(',')[0], out TR.x)
+                        !float.TryParse(@params[2].Split(',')[0], NumberStyles.Any, CultureInfo.InvariantCulture, out TR.x)
                         && @params[2].Split(',')[0] != ""
                     )
                     || (
-                        !float.TryParse(@params[2].Split(',')[1], out TR.y)
+                        !float.TryParse(@params[2].Split(',')[1], NumberStyles.Any, CultureInfo.InvariantCulture, out TR.y)
                         && @params[2].Split(',')[1] != ""
                     )
                 )
@@ -412,15 +409,15 @@ public class RenderOptions3DCommand : Command
         {
             if (
                 (
-                    !float.TryParse(@params[1].Split(',')[0], out temp.x)
+                    !float.TryParse(@params[1].Split(',')[0], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.x)
                     && @params[1].Split(',')[0] != ""
                 )
                 || (
-                    !float.TryParse(@params[1].Split(',')[1], out temp.y)
+                    !float.TryParse(@params[1].Split(',')[1], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.y)
                     && @params[1].Split(',')[1] != ""
                 )
                 || (
-                    !float.TryParse(@params[1].Split(',')[2], out temp.z)
+                    !float.TryParse(@params[1].Split(',')[2], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.z)
                     && @params[1].Split(',')[2] != ""
                 )
             )
@@ -438,16 +435,16 @@ public class RenderOptions3DCommand : Command
         {
             if (
                 (
-                    !float.TryParse(@params[2].Split(',')[0], out temp.x)
+                    !float.TryParse(@params[2].Split(',')[0], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.x)
                     && @params[2].Split(',')[0] != ""
                 )
                 || (
-                    !float.TryParse(@params[2].Split(',')[1], out temp.y)
+                    !float.TryParse(@params[2].Split(',')[1], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.y)
                     && @params[2].Split(',')[1] != ""
                 )
                 || (
                     (
-                        !float.TryParse(@params[2].Split(',')[2], out temp.z)
+                        !float.TryParse(@params[2].Split(',')[2], NumberStyles.Any, CultureInfo.InvariantCulture, out temp.z)
                         || temp.z >= 180
                         || temp.z <= 0
                     )
@@ -468,19 +465,19 @@ public class RenderOptions3DCommand : Command
         {
             if (
                 (
-                    !float.TryParse(@params[3].Split(',')[0], out tempQuaternion.x)
+                    !float.TryParse(@params[3].Split(',')[0], NumberStyles.Any, CultureInfo.InvariantCulture, out tempQuaternion.x)
                     && @params[3].Split(',')[0] != ""
                 )
                 || (
-                    !float.TryParse(@params[3].Split(',')[1], out tempQuaternion.y)
+                    !float.TryParse(@params[3].Split(',')[1], NumberStyles.Any, CultureInfo.InvariantCulture, out tempQuaternion.y)
                     && @params[3].Split(',')[1] != ""
                 )
                 || (
-                    !float.TryParse(@params[3].Split(',')[2], out tempQuaternion.z)
+                    !float.TryParse(@params[3].Split(',')[2], NumberStyles.Any, CultureInfo.InvariantCulture, out tempQuaternion.z)
                     && @params[3].Split(',')[2] != ""
                 )
                 || (
-                    !float.TryParse(@params[3].Split(',')[3], out tempQuaternion.w)
+                    !float.TryParse(@params[3].Split(',')[3], NumberStyles.Any, CultureInfo.InvariantCulture, out tempQuaternion.w)
                     && @params[3].Split(',')[3] != ""
                 )
             )
