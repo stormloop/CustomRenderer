@@ -8,12 +8,14 @@ public static class OBJReader
 {
     public static OBJ ProcessPath(string path)
     {
+        Debug.Log("Process path.");
         return ProcessOBJ(File.ReadAllLines(path));
     }
 
     // Returns a wireframe object.
     public static OBJ ProcessOBJ(string[] lines)
     {
+        Debug.Log("Process text.");
         List<Vector4> vertices = new List<Vector4>();
         foreach (string vertex in lines.Where((s) => s.Substring(0, 2) == "v "))
         {

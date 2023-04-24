@@ -38,6 +38,7 @@ public class CameraScript : MonoBehaviour
 
     private void Awake()
     {
+        Debug.unityLogger.logHandler = new FileLogHandler(@$"{Environment.CurrentDirectory}\Logs\debugLog.log");
         INSTANCE = this;
         new PerspectiveRenderer();
     }

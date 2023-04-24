@@ -11,11 +11,13 @@ public static class SVGReader
 {
     public static SVG ProcessPath(string path)
     {
+        Debug.Log("Process path.");
         return ProcessSVG(File.ReadAllText(path));
     }
 
     public static SVG ProcessSVG(string contents)
     {
+        Debug.Log("Process text.");
         string viewBox = contents.Split("viewBox=\"")[1].Split("\"")[0];
         Vector2 bl = new Vector2(
             float.Parse(viewBox.Split(' ')[0]),

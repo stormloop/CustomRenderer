@@ -11,7 +11,9 @@ public static class FourierGenerator
 
     public static FourierSeries Load(string path)
     {
+        Debug.Log("Process path.");
         string[] lines = File.ReadAllLines(path);
+        Debug.Log("Process text.");
         List<Rotator> rotators = new List<Rotator>();
         foreach (string line in lines)
         {

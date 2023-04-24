@@ -25,6 +25,7 @@ public static class Commands
 
     public static Command GetCommand(string input)
     {
+        throw new Exception("test");
         Command command = GetAllCommands().FirstOrDefault((c) => c.IsThis(input));
         if (command == null)
         {
@@ -242,16 +243,20 @@ public class LoadCommand : Command
             CommandLine.INSTANCE.LogError($"{@params[1]} is not a valid path.");
             return;
         }
+        Debug.Log("File exists");
         if (@params[2].ToUpper().Equals("SVG"))
         {
+            Debug.Log("File is SVG");
             CameraScript.INSTANCE.LoadSVG(SVGReader.ProcessPath(@params[1]));
         }
         else if (@params[2].ToUpper().Equals("OBJ"))
         {
+            Debug.Log("File is OBJ");
             CameraScript.INSTANCE.LoadOBJ(OBJReader.ProcessPath(@params[1]));
         }
         else if (@params[2].ToUpper().Equals("FOURIER"))
         {
+            Debug.Log("File is FOURIER");
             CameraScript.INSTANCE.LoadFourier(
                 FourierGenerator.Load(@params[1]),
                 CameraScript.INSTANCE.BL,
@@ -509,7 +514,7 @@ public class RenderOptions3DCommand : Command
         }
 
         PerspectiveRenderer.INSTANCE.CamPos = camPos;
-        PerspectiveRenderer.INSTANCE.CamRot = camRot;
+        PerspectiveRenderer.INSTANCE.CamRot = camRot.normalized;
         PerspectiveRenderer.INSTANCE.NearFarFOV = nearFarFOV;
         PerspectiveRenderer.INSTANCE.Matrix = matrix();
         PerspectiveRenderer.INSTANCE.MatrixGen = matrix;
