@@ -1,0 +1,232 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Render
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+bool Julia;
+float2 InputC;
+
+int2 Resolution;
+float2 BL, TR; // Coordinates of Bottom Left and Top Right.
+int Depth;
+float DeltaTime;
+
+int Margin; // pixel margin between edges of screen and edges of coordinate window.
+
+inline float2 Sqrt(float2 a) { // According to https://www.cuemath.com/algebra/square-root-of-complex-number/.
+    return float2(sqrt(a.x + sqrt(pow(a.x, 2) + pow(a.y, 2)) / 2), sign(a.y) * sqrt(sqrt(pow(a.x, 2) + pow(a.y, 2) - a.x) / 2));
+}
+inline float2 Sqr(float2 a) {
+    return float2(pow(a.x, 2)-pow(a.y, 2), 2 * a.x * a.y);
+}
+inline float2 Multiply(float2 a, float2 b) {
+    return float2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
+}
+inline float Magnitude(float2 a) {
+    return sqrt(a.x * a.x + a.y * a.y);
+}
+
+inline float3 HSV2RGB(float h,float s,float v) { // From https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB.
+    float r = v * (1 - s * max(0, min(min((5 + h) % 6, 4 - (5 + h) % 6), 1)));
+    float g = v * (1 - s * max(0, min(min((3 + h) % 6, 4 - (3 + h) % 6), 1)));
+    float b = v * (1 - s * max(0, min(min((1 + h) % 6, 4 - (1 + h) % 6), 1)));
+    return float3(r, g, b);
+}
+
+inline float PixelToPosAccuracy() {
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - Margin) / (Resolution.x - Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        return (TR.y - BL.y) / (Resolution.y - Margin);
+    }
+    else // left and right of screen touch field edges.
+    {
+        return (TR.x - BL.x) / (Resolution.x - Margin);
+    }
+}
+
+inline float2 PixelToPos(uint2 pix) {
+    // Calculate aspect ratios and which edges will touch the screen margins.
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - 2 * Margin) / (Resolution.x - 2 * Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.x - (TR.x - BL.x) * (Resolution.y - 2 * Margin) / (TR.y - BL.y);
+        otherEdgeMargin /= 2;
+        return float2((TR.y - BL.y) / (Resolution.y - 2 * Margin) * (pix.x - otherEdgeMargin), (TR.y - BL.y) / (Resolution.y - 2 * Margin) * (pix.y - Margin)) + BL;
+    }
+    else // left and right of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.y - (TR.y - BL.y) * (Resolution.x - 2 * Margin) / (TR.x - BL.x);
+        otherEdgeMargin /= 2;
+        return float2((TR.x - BL.x) / (Resolution.x - 2 * Margin) * (pix.x - Margin), (TR.x - BL.x) / (Resolution.x - 2 * Margin) * (pix.y - otherEdgeMargin)) + BL;
+    }
+}
+inline uint2 PosToPixel(float2 pos) {
+    // Calculate aspect ratios and which edges will touch the screen margins.
+    float aspectPos = (TR.y - BL.y) / (TR.x - BL.x);
+    float aspectPix = (float)(Resolution.y - 2 * Margin) / (Resolution.x - 2 * Margin);
+    if(aspectPos >= aspectPix) // top and bottom of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.x - (TR.x - BL.x) * (Resolution.y - 2 * Margin) / (TR.y - BL.y);
+        otherEdgeMargin /= 2;
+        return uint2(float2(otherEdgeMargin, Margin) + (pos - BL) / (TR.y - BL.y) * (Resolution.y - 2 * Margin));
+    }
+    else // left and right of screen touch field edges.
+    {
+        float otherEdgeMargin = Resolution.y - (TR.y - BL.y) * (Resolution.x - 2 * Margin) / (TR.x - BL.x);
+        otherEdgeMargin /= 2;
+        return uint2(float2(Margin, otherEdgeMargin) + (pos - BL) / (TR.x - BL.x) * (Resolution.x - 2 * Margin));
+    }
+}
+
+inline bool IsPointInsideLineUnclamped(uint2 pix, float4 Positions)
+{
+    float2 pos = PixelToPos(pix);
+
+    // Vertical slope.
+    if(abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) > 0.7853981 && abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) < 2.3561944)
+    {
+        float x = (pos.y - Positions.y) * (Positions.z - Positions.x) / (Positions.w - Positions.y) + Positions.x;
+        return PosToPixel(float2(x, 0)).x == pix.x;
+    }
+        
+    // Horizontal slope.
+    float y = (pos.x - Positions.x) * (Positions.w - Positions.y) / (Positions.z - Positions.x) + Positions.y;
+    return PosToPixel(float2(0, y)).y == pix.y;
+}
+inline bool IsPointInsideLine(uint2 pix, float4 Positions)
+{
+    float2 pos = PixelToPos(pix);
+
+    // Vertical slope.
+    if(abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) > 0.7853981 && abs(atan2(Positions.w - Positions.y, Positions.z - Positions.x)) < 2.3561944)
+    {
+        if(pos.y <= min(Positions.y, Positions.w) || pos.y >= max(Positions.y, Positions.w))
+            return false;
+        float x = (pos.y - Positions.y) * (Positions.z - Positions.x) / (Positions.w - Positions.y) + Positions.x;
+        return PosToPixel(float2(x, 0)).x == pix.x;
+    }
+        
+    // Horizontal slope.
+    if(pos.x <= min(Positions.x, Positions.z) || pos.x >= max(Positions.x, Positions.z))
+        return false;
+    float y = (pos.x - Positions.x) * (Positions.w - Positions.y) / (Positions.z - Positions.x) + Positions.y;
+    return PosToPixel(float2(0, y)).y == pix.y;
+}
+
+inline bool RenderBackground(uint2 id, float2 pos, float acc) {
+    if(IsPointInsideLine(id, float4(BL.x, BL.y, BL.x, TR.y)) || IsPointInsideLine(id, float4(BL.x, BL.y, TR.x, BL.y))
+    || IsPointInsideLine(id, float4(BL.x, TR.y, TR.x, TR.y)) || IsPointInsideLine(id, float4(TR.x, BL.y, TR.x, TR.y))) // Grid outline.
+    {
+        Result[id] = float4(0.9, 0.9, 0.9, 1);
+        return true;
+    }
+    if((pos.x - BL.x) * (TR.x - pos.x) < 0 || (pos.y - BL.y) * (TR.y - pos.y) < 0) // Outside of Grid.
+    {
+        Result[id] = float4(0, 0, 0, 1);
+        return true;
+    }
+    return false;
+}
+
+inline void ClearCanvas(uint2 id) {
+    Result[id] = float4(0, 0, 0, 1);
+}
+
+inline void RenderFractal(uint2 id, float2 pos, float acc) {
+    float2 z = InputC;
+    float2 c = pos;
+    if(Julia) {
+        z = pos;
+        c = InputC;
+    }
+
+    for(int i = 0; i < Depth; i++) {
+        z = Sqr(z) + c;
+        // Result is not finite.
+        if(Magnitude(z) >= 2)
+        {
+            Result[id]= float4(HSV2RGB(log(i)/log(10)+3,1,1),1);
+            return;
+        }
+    }
+   
+    // Result is finite.
+    Result[id] = float4(0,0,0, 1);
+}
+
+// inline void RenderFractalHistogramColoring(uint2 id, float2 pos, float acc) { // https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set.
+//     int iterationDepth;
+
+//     float2 z;
+//     float2 c;
+//     if(!Julia)
+//     {
+//         z = StartC;
+//         c = pos;
+//     }else 
+//     {
+//         z = pos;
+//         c = StartC;
+//     }
+
+//     if(Magnitude(z) >= 2)
+//     {
+//         IterationDepths[0]++;
+//         iterationDepth = 0;
+//     }
+//     else
+//     {
+//         bool bl = true;
+//         for(int i = 1; i < Depth; i++) {
+//             // Result is not finite.
+//             if(Magnitude(Sqr(z)+c) >= 2)
+//             {
+//                 IterationDepths[i]++;
+//                 iterationDepth = i;
+//                 bl = false;
+//                 break;
+//             }
+            
+//             z = Sqr(z) + c;
+//         }
+//         if(bl)
+//         {
+//             // Result is finite.
+//             Result[id] = float4(0,0,0, 1);
+//             IterationDepths[Depth]++;
+//             return;
+//         }
+//     }
+    
+//     AllMemoryBarrierWithGroupSync(); // Wait till all threads finished till this point.
+
+//     // Inefficient way to get the total number of passes.
+//     float total = 0;
+//     for(int i = 0; i < Depth + 1; i++)
+//         total += IterationDepths[i];
+    
+//     float baseHue = 0;
+//     for(int i = 0; i <= iterationDepth; i++) {
+//         baseHue += IterationDepths[i] / total;
+//     }
+
+//     Result[id] = float4(HSV2RGB(baseHue*6, 1, 1), 1);
+// }
+
+[numthreads(8,8,1)]
+void Render (uint3 id : SV_DispatchThreadID)
+{
+    float2 pos = PixelToPos(id.xy);
+    float2 pix = PosToPixel(pos);
+    float acc = PixelToPosAccuracy();
+
+    ClearCanvas(id.xy);
+    if(RenderBackground(id.xy, pos, acc)) return;
+
+    RenderFractal(id.xy, pos, acc);
+}

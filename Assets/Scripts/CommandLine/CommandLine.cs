@@ -108,11 +108,11 @@ public class CommandLine : MonoBehaviour
     public void ExecuteCommand()
     {
         string command = GetComponentInChildren<TMP_InputField>().text;
+        CloseCommandLine();
         if (commandHistory.Count <= 1 || commandHistory[commandHistory.Count - 1] != command)
             commandHistory.Add(command);
         index = commandHistory.Count;
         Commands.ExecuteCommand(command);
-        CloseCommandLine();
     }
 
     public void LogError(string text)

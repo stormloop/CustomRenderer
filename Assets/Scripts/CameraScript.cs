@@ -4,6 +4,7 @@ using UnityEngine;
 using System.IO;
 using System.Linq;
 using System;
+using System.Text.RegularExpressions;
 
 public class CameraScript : MonoBehaviour
 {
@@ -35,6 +36,11 @@ public class CameraScript : MonoBehaviour
 
     public Vector2 BL,
         TR;
+
+        List<Line> LineOutput = new List<Line>();
+        List<CCurve> CCurveOutput = new List<CCurve>();
+        List<QCurve> QCurveOutput = new List<QCurve>();
+        List<Circle> CircleOutput = new List<Circle>();
 
     private void Awake()
     {
@@ -136,11 +142,6 @@ public class CameraScript : MonoBehaviour
 
         lastTrail = Trail;
 
-        List<Line> linesOutput = new List<Line>();
-        List<CCurve> cCurveOutput = new List<CCurve>();
-        List<QCurve> qCurveOutput = new List<QCurve>();
-        List<Circle> circleOutput = new List<Circle>();
-
         if (Svg)
             for (int i = 0; i < svg.PathElements.Count(); i++)
             {
@@ -148,21 +149,21 @@ public class CameraScript : MonoBehaviour
                 {
                     Line lineStruct = line.ToStruct();
                     lineStruct.ColorAndDepth.w = 0.5f;
-                    linesOutput.Add(lineStruct);
+                    LineOutput.Add(lineStruct);
                     continue;
                 }
                 if (svg.PathElements[i] is CubicBezierElement cCurve)
                 {
                     CCurve cCurveStruct = cCurve.ToStruct();
                     cCurveStruct.ColorAndDepth.w = 0.5f;
-                    cCurveOutput.Add(cCurveStruct);
+                    CCurveOutput.Add(cCurveStruct);
                     continue;
                 }
                 if (svg.PathElements[i] is QuadraticBezierElement qCurve)
                 {
                     QCurve qCurveStruct = qCurve.ToStruct();
                     qCurveStruct.ColorAndDepth.w = 0.5f;
-                    qCurveOutput.Add(qCurveStruct);
+                    QCurveOutput.Add(qCurveStruct);
                     continue;
                 }
             }
@@ -181,7 +182,7 @@ public class CameraScript : MonoBehaviour
                     ),
                     new Vector4(0, 180f/255, 20f/255, 0.1f)
                 );
-                linesOutput.Add(lineStruct);
+                LineOutput.Add(lineStruct);
             }
         }
         if ((Fourier || Trail) && fourier.Rotators != null)
@@ -204,7 +205,7 @@ public class CameraScript : MonoBehaviour
                         )
                     );
                 if (Fourier)
-                    linesOutput.Add(
+                    LineOutput.Add(
                         new Line(
                             new Vector4(currentPos.x, currentPos.y, newPos.x, newPos.y),
                             new Vector4(54f / 256, 74f / 256, 122f / 256, 0.9f)
@@ -218,7 +219,7 @@ public class CameraScript : MonoBehaviour
             {
                 if (lastTrailPos.Equals(new Vector2(float.MaxValue, float.MaxValue)))
                     lastTrailPos = currentPos;
-                linesOutput.Add(
+                LineOutput.Add(
                     new Line(
                         new Vector4(lastTrailPos.x, lastTrailPos.y, currentPos.x, currentPos.y),
                         new Vector4(229f / 255, 157f / 255, 0, 1),
@@ -229,22 +230,26 @@ public class CameraScript : MonoBehaviour
             }
         }
 
-        if (linesOutput.Count() == 0)
-            linesOutput = new List<Line>() { Renderer.DefaultLine };
-        ComputeBuffer lines = new ComputeBuffer(linesOutput.Count(), 9 * sizeof(float));
-        lines.SetData(linesOutput.ToArray());
-        if (cCurveOutput.Count() == 0)
-            cCurveOutput = new List<CCurve>() { Renderer.DefaultCCurve };
-        ComputeBuffer cCurves = new ComputeBuffer(cCurveOutput.Count(), 13 * sizeof(float));
-        cCurves.SetData(cCurveOutput.ToArray());
-        if (qCurveOutput.Count() == 0)
-            qCurveOutput = new List<QCurve>() { Renderer.DefaultQCurve };
-        ComputeBuffer qCurves = new ComputeBuffer(qCurveOutput.Count(), 11 * sizeof(float));
-        qCurves.SetData(qCurveOutput.ToArray());
-        if (circleOutput.Count() == 0)
-            circleOutput = new List<Circle>() { Renderer.DefaultCircle };
-        ComputeBuffer circles = new ComputeBuffer(circleOutput.Count(), 8 * sizeof(float));
-        circles.SetData(circleOutput.ToArray());
+        if (LineOutput.Count() == 0)
+            LineOutput = new List<Line>() { Renderer.DefaultLine };
+        ComputeBuffer lines = new ComputeBuffer(LineOutput.Count(), 9 * sizeof(float));
+        lines.SetData(LineOutput.ToArray());
+        LineOutput.Clear();
+        if (CCurveOutput.Count() == 0)
+            CCurveOutput = new List<CCurve>() { Renderer.DefaultCCurve };
+        ComputeBuffer cCurves = new ComputeBuffer(CCurveOutput.Count(), 13 * sizeof(float));
+        cCurves.SetData(CCurveOutput.ToArray());
+        CCurveOutput.Clear();
+        if (QCurveOutput.Count() == 0)
+            QCurveOutput = new List<QCurve>() { Renderer.DefaultQCurve };
+        ComputeBuffer qCurves = new ComputeBuffer(QCurveOutput.Count(), 11 * sizeof(float));
+        qCurves.SetData(QCurveOutput.ToArray());
+        QCurveOutput.Clear();
+        if (CircleOutput.Count() == 0)
+            CircleOutput = new List<Circle>() { Renderer.DefaultCircle };
+        ComputeBuffer circles = new ComputeBuffer(CircleOutput.Count(), 8 * sizeof(float));
+        circles.SetData(CircleOutput.ToArray());
+        CircleOutput.Clear();
 
         shader.SetTexture(shader.FindKernel("Render"), "Result", tex);
         shader.SetTexture(shader.FindKernel("Render"), "Trails", trails);
@@ -266,9 +271,9 @@ public class CameraScript : MonoBehaviour
         cCurves.Dispose();
         qCurves.Dispose();
         circles.Dispose();
+        
 
         Graphics.Blit(tex, dest);
-
         //Graphics.Blit(src, dest);
     }
 }

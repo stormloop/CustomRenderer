@@ -6,6 +6,7 @@ using System;
 using System.Text;
 using System.IO;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 public static class Commands
 {
@@ -39,7 +40,12 @@ public static class Commands
 
     public static void ExecuteCommand(string input)
     {
-        GetCommand(input.Split(' ')[0])?.Execute(input.Split(' '));
+        // Split in words by spaces that are not enclosed by double quotation marks.
+        MatchCollection matches = Regex.Matches(input, "(\"[^\"]*\"|\\S)+");
+        string[] strings = new string[matches.Count()];
+        for(int i = 0; i < matches.Count(); i++)
+            strings[i] = matches[i].Value.Replace("\"", "");
+        GetCommand(strings[0])?.Execute(strings);
     }
 }
 
