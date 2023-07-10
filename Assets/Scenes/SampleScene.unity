@@ -254,12 +254,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Julia: 0
-  StartC: {x: 0, y: 0}
+  InputC: {x: 0, y: 0}
   Depth: 10000
   shader: {fileID: 7200000, guid: bab9102ca04c83943acf7600311acfa2, type: 3}
   tex: {fileID: 0}
-  BL: {x: -1.5, y: -1}
-  TR: {x: 0.5, y: 1}
+  BL: {x: -2, y: -2}
+  TR: {x: 2, y: 2}
 --- !u!1 &634430225
 GameObject:
   m_ObjectHideFlags: 0

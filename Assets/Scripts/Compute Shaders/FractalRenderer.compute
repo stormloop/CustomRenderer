@@ -1,9 +1,12 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel Render
+#pragma kernel GenerateHistogram
+#pragma kernel RenderHistogram
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
+RWStructuredBuffer<int> IterationDepths;
 
 bool Julia;
 float2 InputC;
@@ -20,6 +23,16 @@ inline float2 Sqrt(float2 a) { // According to https://www.cuemath.com/algebra/s
 }
 inline float2 Sqr(float2 a) {
     return float2(pow(a.x, 2)-pow(a.y, 2), 2 * a.x * a.y);
+}
+inline float2 Pow(float2 c, int p) {
+    if(all(c == float2(0, 0)))
+        return float2(0, 0);
+    float theta = atan2(c.y, c.x);
+    float r = sqrt(c.x * c.x + c.y * c.y);
+    return pow(r, p) * float2(cos(p * theta), sin(p * theta));
+}
+inline float2 Exp(float2 a) {
+    return exp(a.x) * float2(cos(a.y), sin(a.y));
 }
 inline float2 Multiply(float2 a, float2 b) {
     return float2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
@@ -159,64 +172,55 @@ inline void RenderFractal(uint2 id, float2 pos, float acc) {
     Result[id] = float4(0,0,0, 1);
 }
 
-// inline void RenderFractalHistogramColoring(uint2 id, float2 pos, float acc) { // https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set.
-//     int iterationDepth;
+inline void GenerateFractalHistogram(uint2 id, float2 pos, float acc) { // https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set.
+    float2 z = InputC;
+    float2 c = pos;
+    if(Julia) {
+        z = pos;
+        c = InputC;
+    }
+        
+    bool bl = true;
+    for(int i = 1; i < Depth; i++) {
+        z = Pow(z, 5) + c;
+        // Result is not finite.
+        if(Magnitude(z) >= 2)
+        {
+            IterationDepths[i]++;
+            Result[id] = float4(0, 0, 0, i);
+            bl = false;
+            break;
+        }
+    }
+    if(bl)
+    {
+        // Result is finite.
+        Result[id] = float4(0, 0, 0, -1);
+        return;
+    }
+}
 
-//     float2 z;
-//     float2 c;
-//     if(!Julia)
-//     {
-//         z = StartC;
-//         c = pos;
-//     }else 
-//     {
-//         z = pos;
-//         c = StartC;
-//     }
-
-//     if(Magnitude(z) >= 2)
-//     {
-//         IterationDepths[0]++;
-//         iterationDepth = 0;
-//     }
-//     else
-//     {
-//         bool bl = true;
-//         for(int i = 1; i < Depth; i++) {
-//             // Result is not finite.
-//             if(Magnitude(Sqr(z)+c) >= 2)
-//             {
-//                 IterationDepths[i]++;
-//                 iterationDepth = i;
-//                 bl = false;
-//                 break;
-//             }
-            
-//             z = Sqr(z) + c;
-//         }
-//         if(bl)
-//         {
-//             // Result is finite.
-//             Result[id] = float4(0,0,0, 1);
-//             IterationDepths[Depth]++;
-//             return;
-//         }
-//     }
+inline void RenderFractalHistogram(uint2 id, float2 pos, float acc) { // https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set.
+    if(Result[id].a == -1)
+    {
+        Result[id] = float4(0, 0, 0, 1);
+        return;
+    }
+    // Inefficient way to get the total number of passes.
+    float total = 0;
+    for(int i = 0; i < Depth; i++)
+        total += IterationDepths[i];
     
-//     AllMemoryBarrierWithGroupSync(); // Wait till all threads finished till this point.
+    float baseHue = 0;
+    for(int i = 0; i <= Result[id].a; i++) {
+        baseHue += IterationDepths[i] / total;
+    }
 
-//     // Inefficient way to get the total number of passes.
-//     float total = 0;
-//     for(int i = 0; i < Depth + 1; i++)
-//         total += IterationDepths[i];
-    
-//     float baseHue = 0;
-//     for(int i = 0; i <= iterationDepth; i++) {
-//         baseHue += IterationDepths[i] / total;
-//     }
-
-//     Result[id] = float4(HSV2RGB(baseHue*6, 1, 1), 1);
-// }
+    // Result[id] = float4(HSV2RGB(-6/(baseHue-1), 1, 1), 1); // Rainbow.
+    Result[id] = float4(HSV2RGB(6*baseHue, 1, 1), 1); // Linear gradient.
+    // Result[id] = float4(HSV2RGB(baseHue, 1, 1), 1); // Two color gradient.
+    // Result[id] = float4(baseHue, baseHue, baseHue, 1); // Grayscale.
+}
 
 [numthreads(8,8,1)]
 void Render (uint3 id : SV_DispatchThreadID)
@@ -229,4 +233,26 @@ void Render (uint3 id : SV_DispatchThreadID)
     if(RenderBackground(id.xy, pos, acc)) return;
 
     RenderFractal(id.xy, pos, acc);
+}
+
+[numthreads(8,8,1)]
+void GenerateHistogram (uint3 id: SV_DispatchThreadID)
+{
+    float2 pos = PixelToPos(id.xy);
+    float2 pix = PosToPixel(pos);
+    float acc = PixelToPosAccuracy();
+    ClearCanvas(id.xy);
+    if(RenderBackground(id.xy, pos, acc)) return;
+
+    GenerateFractalHistogram(id.xy, pos, acc);
+}
+[numthreads(8,8,1)]
+void RenderHistogram (uint3 id: SV_DispatchThreadID)
+{
+    float2 pos = PixelToPos(id.xy);
+    float2 pix = PosToPixel(pos);
+    float acc = PixelToPosAccuracy();
+    if(RenderBackground(id.xy, pos, acc)) return;
+
+    RenderFractalHistogram(id.xy, pos, acc);
 }
