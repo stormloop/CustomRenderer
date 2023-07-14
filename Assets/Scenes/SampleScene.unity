@@ -253,8 +253,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b89cd3c204b86f749930fd09d7380931, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Julia: 0
-  InputC: {x: 0, y: 0}
+  Julia: 1
+  InputC: {x: -0.59, y: 0}
   Depth: 10000
   shader: {fileID: 7200000, guid: bab9102ca04c83943acf7600311acfa2, type: 3}
   tex: {fileID: 0}

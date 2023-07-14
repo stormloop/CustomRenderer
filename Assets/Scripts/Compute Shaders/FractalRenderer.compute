@@ -41,7 +41,7 @@ inline float2 Multiply(float2 a, float2 b) {
     return float2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
 inline float2 Divide (float2 a, float2 b) {
-    return Multiply(a, Inv(b)) / (pow(b.x, 2) - pow(b.y, 2));
+    return Multiply(a, Inv(b)) / (pow(b.x, 2) + pow(b.y, 2));
 }
 inline float Magnitude(float2 a) {
     return sqrt(a.x * a.x + a.y * a.y);
@@ -194,7 +194,7 @@ inline void GenerateFractalHistogram(uint2 id, float2 pos, float acc) { // https
         
     bool bl = true;
     for(int i = 1; i < Depth; i++) {
-        z = Sqr(z) + c;
+        z = Divide(Sqr(z) + z, Ln(z)) + c;
         // Result is not finite.
         if(Magnitude(z) >= 2)
         {
