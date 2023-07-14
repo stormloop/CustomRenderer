@@ -18,6 +18,9 @@ float DeltaTime;
 
 int Margin; // pixel margin between edges of screen and edges of coordinate window.
 
+inline float2 Inv(float2 c) {
+    return float2(c.x, -c.y);
+}
 inline float2 Sqrt(float2 a) { // According to https://www.cuemath.com/algebra/square-root-of-complex-number/.
     return float2(sqrt(a.x + sqrt(pow(a.x, 2) + pow(a.y, 2)) / 2), sign(a.y) * sqrt(sqrt(pow(a.x, 2) + pow(a.y, 2) - a.x) / 2));
 }
@@ -37,8 +40,17 @@ inline float2 Exp(float2 a) {
 inline float2 Multiply(float2 a, float2 b) {
     return float2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
+inline float2 Divide (float2 a, float2 b) {
+    return Multiply(a, Inv(b)) / (pow(b.x, 2) - pow(b.y, 2));
+}
 inline float Magnitude(float2 a) {
     return sqrt(a.x * a.x + a.y * a.y);
+}
+inline float2 Log(float base, float2 c) {
+    return float2(log(c.x) / log(base), atan2(c.y, c.x));
+}
+inline float2 Ln(float2 c) {
+    return float2(log(c.x), atan2(c.y, c.x));
 }
 
 inline float3 HSV2RGB(float h,float s,float v) { // From https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB.
@@ -182,7 +194,7 @@ inline void GenerateFractalHistogram(uint2 id, float2 pos, float acc) { // https
         
     bool bl = true;
     for(int i = 1; i < Depth; i++) {
-        z = Pow(z, 5) + c;
+        z = Sqr(z) + c;
         // Result is not finite.
         if(Magnitude(z) >= 2)
         {
@@ -217,9 +229,9 @@ inline void RenderFractalHistogram(uint2 id, float2 pos, float acc) { // https:/
     }
 
     // Result[id] = float4(HSV2RGB(-6/(baseHue-1), 1, 1), 1); // Rainbow.
-    Result[id] = float4(HSV2RGB(6*baseHue, 1, 1), 1); // Linear gradient.
+    // Result[id] = float4(HSV2RGB(6*baseHue, 1, 1), 1); // Linear gradient.
     // Result[id] = float4(HSV2RGB(baseHue, 1, 1), 1); // Two color gradient.
-    // Result[id] = float4(baseHue, baseHue, baseHue, 1); // Grayscale.
+    Result[id] = float4(baseHue, baseHue, baseHue, 1); // Grayscale.
 }
 
 [numthreads(8,8,1)]
